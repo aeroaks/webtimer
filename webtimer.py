@@ -25,9 +25,8 @@ __version__ = '.'.join(map(str, VERSION))
 import os
 import sys
 import re
-import urllib
-import urllib2
-import urlparse
+import urllib.request
+import urllib.parse
 import time
 
 from fake_useragent import UserAgent
@@ -69,8 +68,8 @@ class WebTimer(object):
             t0 = time.time()
             # Randomize user-agent and ignore robots.txt to ensure server
             # isn't gaming load times.
-            req = urllib2.Request(url, headers={ 'User-Agent': ua.random })
-            html = urllib2.urlopen(req).read()
+            req = urllib.request.Request(url, headers={ 'User-Agent': ua.random })
+            html = urllib.request.urlopen(req).read()
             td = time.time() - t0
             self.times[url] = td
             self.times_by_type.setdefault(asset_type, 0)
@@ -80,23 +79,23 @@ class WebTimer(object):
     
     @property
     def total_download_seconds(self):
-        return sum(self.times.itervalues())
+        return sum(self.times.values())
         
     def evaluate(self):
-        self.domain = urlparse.urlparse(url).netloc
+        self.domain = urllib.parse.urlparse(url).netloc
         pending = [(HTML, self.url)]
         i = 0
         while pending:
             i += 1
             next_type, next_url = pending.pop(0)
             total = len(pending) + i
-            print ('\rMeasuring %i of %i %.02f%%: %s' \
+            print (('\rMeasuring %i of %i %.02f%%: %s' \
                 % (i, total, i/float(total)*100, next_url[:60])).ljust(80),
-            sys.stdout.flush()
+            sys.stdout.flush())
             html = self.measure(url=next_url, asset_type=next_type)
             if next_type == HTML:
                 for name, pattern in ASSET_PATTERNS:
-                    matches = pattern.findall(html)
+                    matches = pattern.findall(html.decode("UTF-8"))
                     self.link_types.setdefault(name, set())
                     self.link_types[name].update(matches)
                     for link in set(matches):
@@ -111,17 +110,17 @@ if __name__ == '__main__':
     url = sys.argv[1]
     wt = WebTimer(url=url)
     wt.evaluate()
-    print
-    print '-'*80
-    print 'Download times by URL:'
+    print ()
+    print ('-'*80)
+    print ('Download times by URL:')
     fmt = '%%%d.02f %%s' % len('%.02f' % max(wt.times.values()))
-    for url, download_time in sorted(wt.times.iteritems(), key=lambda o:o[1]):
-        print fmt % (download_time, url)
-    print '-'*80
-    print 'Download times by asset type:'
+    for url, download_time in sorted(wt.times.items(), key=lambda o:o[1]):
+        print (fmt % (download_time, url))
+    print ('-'*80)
+    print ('Download times by asset type:')
     fmt = '%%%d.02f %%6.02f%%%% %%s' % len('%.02f' % max(wt.times_by_type.values()))
-    for asset_type, download_time in sorted(wt.times_by_type.iteritems(), key=lambda o:o[1]):
-        print fmt % (download_time, download_time/wt.total_download_seconds*100, asset_type)
-    print '-'*80
-    print 'Total download seconds: %.02f' % wt.total_download_seconds
+    for asset_type, download_time in sorted(wt.times_by_type.items(), key=lambda o:o[1]):
+        print (fmt % (download_time, download_time/wt.total_download_seconds*100, asset_type))
+    print ('-'*80)
+    print ('Total download seconds: %.02f' % wt.total_download_seconds)
     
